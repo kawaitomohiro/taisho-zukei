@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>対称な図形 学習アプリ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="対称な図形">
+<meta name="theme-color" content="#1a6fdf">
+<meta name="description" content="線対称・点対称を、図をかいて折ったり回したりして確かめるアプリ。URLを開くだけで使えます。">
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'M PLUS Rounded 1c', sans-serif; background: #f0f7ff; min-height: 100vh; color: #1a2a4a; }
+
+  header {
+    background: linear-gradient(135deg, #1a6fdf 0%, #0a4da8 100%);
+    color: white; padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  }
+  header h1 { font-size: 20px; font-weight: 800; letter-spacing: 0.02em; }
+  header .badge { background: rgba(255,255,255,0.2); border-radius: 20px; padding: 3px 10px; font-size: 12px; font-weight: 700; }
+
+  .app-container { display: flex; height: calc(100vh - 56px); }
+
+  .toolbar { width: 210px; background: white; border-right: 2px solid #d0e4f8; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; }
+  .toolbar-section { padding: 12px; border-bottom: 1px solid #e8f0fc; }
+  .toolbar-section h3 { font-size: 11px; font-weight: 800; color: #5a7aaa; text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+
+  .tool-btn {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+    border-radius: 8px; border: 1.5px solid transparent; background: #f5f9ff;
+    color: #1a2a4a; font-family: 'M PLUS Rounded 1c', sans-serif; font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: all 0.15s; margin-bottom: 4px;
+  }
+  .tool-btn:hover { background: #e0edff; border-color: #90b8f0; }
+  .tool-btn.active { background: #1a6fdf; color: white; border-color: #1a6fdf; }
+  .tool-btn .icon { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+
+  .color-row { display: flex; gap: 6px; margin-top: 6px; flex-wrap: wrap; }
+  .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s; }
+  .color-swatch:hover { transform: scale(1.2); }
+  .color-swatch.active { border-color: #1a2a4a; transform: scale(1.1); }
+
+  .slider-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+  .slider-row label { font-size: 12px; color: #5a7aaa; font-weight: 700; min-width: 32px; }
+  .slider-row input[type=range] { flex: 1; }
+  .slider-row span { font-size: 12px; font-weight: 700; color: #1a2a4a; min-width: 24px; text-align: right; }
+
+  .upload-area { border: 2px dashed #90b8f0; border-radius: 10px; padding: 14px; text-align: center; cursor: pointer; transition: all 0.2s; background: #f5f9ff; margin-bottom: 8px; }
+  .upload-area:hover { border-color: #1a6fdf; background: #e0edff; }
+  .upload-area .icon { font-size: 24px; }
+  .upload-area p { font-size: 11px; color: #5a7aaa; font-weight: 700; margin-top: 4px; }
+  #fileInput { display: none; }
+
+  .canvas-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+  .canvas-toolbar { background: white; border-bottom: 2px solid #d0e4f8; padding: 8px 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .action-btn {
+    padding: 6px 14px; border-radius: 20px; border: 1.5px solid #90b8f0;
+    background: white; color: #1a6fdf; font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s;
+  }
+  .action-btn:hover { background: #1a6fdf; color: white; }
+  .sep { width: 1px; height: 28px; background: #d0e4f8; }
+  #mainCanvas { flex: 1; display: block; cursor: crosshair; background: white; }
+
+  .symmetry-panel { width: 240px; background: white; border-left: 2px solid #d0e4f8; display: flex; flex-direction: column; overflow-y: auto; flex-shrink: 0; transition: border-color 0.4s; }
+  .panel-header { padding: 14px 14px 10px; border-bottom: 1px solid #e8f0fc; background: #f5f9ff; transition: background 0.4s; }
+  .panel-header h2 { font-size: 14px; font-weight: 800; color: #1a6fdf; margin-bottom: 2px; transition: color 0.4s; }
+  .panel-header p { font-size: 11px; color: #5a7aaa; font-weight: 700; }
+
+  /* モード切り替え時の色変化 */
+  .symmetry-panel.point-mode { border-left-color: #f0a0a0; }
+  .symmetry-panel.point-mode .panel-header { background: #fff5f5; }
+  .symmetry-panel.point-mode .panel-header h2 { color: #c0392b; }
+
+  .sym-tabs { display: flex; border-bottom: 2px solid #e8f0fc; }
+  .sym-tab {
+    flex: 1; padding: 10px 6px; text-align: center; font-size: 13px; font-weight: 700;
+    color: #5a7aaa; cursor: pointer; background: #f5f9ff; border: none; transition: all 0.3s;
+    font-family: 'M PLUS Rounded 1c', sans-serif; position: relative;
+  }
+  .sym-tab.active { background: white; color: #1a6fdf; border-bottom: 3px solid #1a6fdf; margin-bottom: -2px; font-weight: 800; font-size: 14px; }
+  .sym-tab.active.point-active { color: #c0392b; border-bottom-color: #e24b4a; }
+
+  /* パネル切り替えアニメーション */
+  .panel-body { padding: 14px; animation: fadeSlideIn 0.35s ease; }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .info-card { background: #f0f7ff; border-radius: 10px; padding: 12px; margin-bottom: 14px; border-left: 4px solid #1a6fdf; }
+  .info-card .title { font-size: 13px; font-weight: 800; color: #1a6fdf; margin-bottom: 4px; }
+  .info-card .desc { font-size: 12px; color: #3a5a8a; line-height: 1.5; font-weight: 400; }
+
+  .ctrl-group { margin-bottom: 14px; }
+  .ctrl-group > label { display: block; font-size: 11px; font-weight: 800; color: #5a7aaa; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  .axis-btns { display: flex; gap: 8px; }
+  .axis-btn {
+    flex: 1; padding: 10px 4px; border-radius: 8px; border: 1.5px solid #d0e4f8;
+    background: #f5f9ff; color: #1a2a4a; font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .axis-btn:hover { background: #e0edff; border-color: #90b8f0; }
+  .axis-btn.active { background: #1a6fdf; color: white; border-color: #1a6fdf; }
+
+  .angle-display { background: #e24b4a; color: white; border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 10px; }
+  .angle-display .angle-val { font-size: 34px; font-weight: 800; line-height: 1; }
+  .angle-display .angle-label { font-size: 11px; opacity: 0.85; margin-top: 3px; font-weight: 700; }
+
+  .angle-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 10px; }
+  .preset-btn {
+    padding: 7px 4px; border-radius: 8px; border: 1.5px solid #f09595;
+    background: #fff0f0; color: #a32d2d; font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; text-align: center;
+  }
+  .preset-btn:hover { background: #e24b4a; color: white; border-color: #e24b4a; }
+
+  .sym-btn {
+    display: block; width: 100%; padding: 11px; border-radius: 10px; border: 2px solid #1a6fdf;
+    background: white; color: #1a6fdf; font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px; font-weight: 800; cursor: pointer; transition: all 0.15s; margin-bottom: 8px; text-align: center;
+  }
+  .sym-btn:hover, .sym-btn.on { background: #1a6fdf; color: white; }
+  .sym-btn.green { border-color: #3b6d11; color: #3b6d11; }
+  .sym-btn.green:hover { background: #3b6d11; color: white; }
+  .sym-btn.red { border-color: #e24b4a; color: #a32d2d; }
+  .sym-btn.red:hover, .sym-btn.red.on { background: #e24b4a; color: white; border-color: #e24b4a; }
+  .sym-btn.purple { border-color: #534ab7; color: #534ab7; }
+  .sym-btn.purple:hover, .sym-btn.purple.on { background: #534ab7; color: white; border-color: #534ab7; }
+  .sym-btn.orange { border-color: #e67e22; color: #c0611f; }
+  .sym-btn.orange:hover, .sym-btn.orange.on { background: #e67e22; color: white; border-color: #e67e22; }
+
+  .center-btn {
+    width: 100%; padding: 8px; border-radius: 8px; border: 1.5px solid #90b8f0;
+    background: #f5f9ff; color: #1a6fdf; font-family: 'M PLUS Rounded 1c', sans-serif;
+    font-size: 13px; font-weight: 700; cursor: pointer; text-align: center;
+  }
+  .center-btn:hover { background: #1a6fdf; color: white; }
+  .rotate-slider { width: 100%; margin-bottom: 6px; }
+
+  .toast {
+    position: fixed; top: 70px; left: 50%; transform: translateX(-50%);
+    background: #1a2a4a; color: white; padding: 10px 20px; border-radius: 20px;
+    font-size: 13px; font-weight: 700; opacity: 0; transition: opacity 0.3s; z-index: 200; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+
+  /* モード切り替え時の大きな通知バナー */
+  .mode-banner {
+    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.8);
+    padding: 20px 40px; border-radius: 20px; font-size: 22px; font-weight: 800;
+    color: white; opacity: 0; z-index: 300; pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+  }
+  .mode-banner.show {
+    opacity: 1; transform: translate(-50%, -50%) scale(1);
+  }
+  .mode-banner.line-mode { background: linear-gradient(135deg, #1a6fdf, #0a4da8); }
+  .mode-banner.point-mode { background: linear-gradient(135deg, #e24b4a, #c0392b); }
+
+  .help-badge {
+    position: fixed; bottom: 16px; right: 16px; background: #1a6fdf; color: white;
+    width: 40px; height: 40px; border-radius: 50%; border: none; font-size: 18px; font-weight: 800;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(26,111,223,0.4); z-index: 100;
+  }
+
+  /* 画像ボタン横並び */
+  .image-btns { display: flex; gap: 6px; margin-bottom: 8px; }
+  .image-btns .upload-area { flex: 1; margin-bottom: 0; padding: 10px 6px; }
+  .image-btns .upload-area .icon { font-size: 20px; }
+  .image-btns .upload-area p { font-size: 10px; margin-top: 2px; }
+
+  /* プリセット画像グリッド */
+  .preset-images { margin-bottom: 8px; }
+  .preset-images h4 { font-size: 10px; font-weight: 800; color: #5a7aaa; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .preset-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .preset-item {
+    aspect-ratio: 1; border-radius: 8px; border: 2px solid #d0e4f8; background: white;
+    cursor: pointer; transition: all 0.15s; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 4px; overflow: hidden;
+  }
+  .preset-item:hover { border-color: #1a6fdf; background: #e0edff; transform: scale(1.05); }
+  .preset-item img, .preset-item svg { width: 80%; height: 60%; object-fit: contain; }
+  .preset-item span { font-size: 9px; font-weight: 700; color: #5a7aaa; margin-top: 2px; line-height: 1.1; text-align: center; }
+
+  /* ドラッグ＆ドロップ */
+  .canvas-drop-overlay {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(26,111,223,0.15); border: 3px dashed #1a6fdf;
+    display: none; align-items: center; justify-content: center;
+    z-index: 50; pointer-events: none; border-radius: 4px;
+  }
+  .canvas-drop-overlay.active { display: flex; }
+  .canvas-drop-overlay span {
+    background: #1a6fdf; color: white; padding: 12px 24px; border-radius: 16px;
+    font-size: 16px; font-weight: 800;
+  }
+  .canvas-area { position: relative; }
+
+
+</style>
+<style>/* Web版だけ */
+@media (max-width:700px){
+  .app-container{flex-direction:column;height:auto}
+  .canvas-area{order:-1;flex:none;height:72vh}
+  .toolbar,.symmetry-panel{width:100%;border:none;border-top:2px solid #d0e4f8;overflow:visible}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:24px">📐</div>
+  <h1>対称な図形　学習アプリ</h1>
+  <div class="badge">6年生 算数</div>
+</header>
+
+<div class="toast" id="toast"></div>
+<div class="mode-banner" id="modeBanner"></div>
+
+<div class="app-container">
+
+  <!-- 左：描画ツール -->
+  <div class="toolbar">
+    <div class="toolbar-section">
+      <h3>🖊 描画ツール</h3>
+      <button class="tool-btn"        data-tool="move"     onclick="setTool('move')">    <span class="icon">✋</span>移動</button>
+      <button class="tool-btn active" data-tool="pen"      onclick="setTool('pen')">     <span class="icon">✏️</span>フリーハンド</button>
+      <button class="tool-btn"        data-tool="line"     onclick="setTool('line')">    <span class="icon">📏</span>直線</button>
+      <button class="tool-btn"        data-tool="rect"     onclick="setTool('rect')">    <span class="icon">⬜</span>四角形</button>
+      <button class="tool-btn"        data-tool="circle"   onclick="setTool('circle')">  <span class="icon">⭕</span>円</button>
+      <button class="tool-btn"        data-tool="triangle" onclick="setTool('triangle')"><span class="icon">🔺</span>三角形</button>
+      <button class="tool-btn"        data-tool="eraser"   onclick="setTool('eraser')">  <span class="icon">🧹</span>消しゴム</button>
+    </div>
+    <div class="toolbar-section">
+      <h3>🎨 色</h3>
+      <div class="color-row">
+        <div class="color-swatch active" style="background:#1a6fdf" onclick="setColor('#1a6fdf',this)"></div>
+        <div class="color-swatch" style="background:#e24b4a" onclick="setColor('#e24b4a',this)"></div>
+        <div class="color-swatch" style="background:#3b6d11" onclick="setColor('#3b6d11',this)"></div>
+        <div class="color-swatch" style="background:#ba7517" onclick="setColor('#ba7517',this)"></div>
+        <div class="color-swatch" style="background:#993556" onclick="setColor('#993556',this)"></div>
+        <div class="color-swatch" style="background:#1a2a4a" onclick="setColor('#1a2a4a',this)"></div>
+      </div>
+    </div>
+    <div class="toolbar-section">
+      <h3>📐 太さ</h3>
+      <div class="slider-row">
+        <label>太さ</label>
+        <input type="range" min="1" max="20" value="3" oninput="setBrushSize(this.value)">
+        <span id="brushSizeVal">3</span>
+      </div>
+    </div>
+    <div class="toolbar-section">
+      <h3>🖼 画像</h3>
+
+      <!-- プリセット画像 -->
+      <div class="preset-images">
+        <h4>タップして選ぶ</h4>
+        <div class="preset-grid" id="presetGrid"></div>
+      </div>
+
+      <!-- アップロード -->
+      <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+        <div class="icon">🖼️</div>
+        <p id="uploadLabel">タップして画像を選択</p>
+      </div>
+      <p style="font-size:9px;color:#90b8f0;text-align:center;font-weight:700;margin-bottom:6px;">画像をキャンバスにドラッグ＆ドロップもOK！</p>
+      <input type="file" id="fileInput" accept="image/*" onchange="loadImage(event)">
+      <button class="tool-btn" id="clearImageBtn" onclick="clearImage()" style="display:none;background:#fff0f0;color:#a32d2d;border-color:#f09595;">
+        <span class="icon">🗑️</span>画像を消す
+      </button>
+    </div>
+  </div>
+
+  <!-- 中央：キャンバス -->
+  <div class="canvas-area">
+    <div class="canvas-drop-overlay" id="dropOverlay"><span>ここに画像をドロップ！</span></div>
+    <div class="canvas-toolbar">
+      <button class="action-btn" onclick="undoLast()">↩ 一つ戻す</button>
+      <button class="action-btn" onclick="clearCanvas()">🧹 全消去</button>
+      <div class="sep"></div>
+      <button class="action-btn" id="setCenterBtn" onclick="setCenterMode()">📍 対称の中心を指定</button>
+      <button class="action-btn" onclick="downloadCanvas()">💾 保存</button>
+    </div>
+    <canvas id="mainCanvas"></canvas>
+  </div>
+
+  <!-- 右：対称設定 -->
+  <div class="symmetry-panel" id="symmetryPanel">
+    <div class="panel-header" id="panelHeader">
+      <h2 id="panelTitle">📐 対称の設定</h2>
+      <p id="panelDesc">対称の種類を選んで操作しよう</p>
+    </div>
+
+    <div class="sym-tabs">
+      <button class="sym-tab active" id="lineTab" onclick="switchSymType('line')">📏 線対称</button>
+      <button class="sym-tab"        id="pointTab" onclick="switchSymType('point')">🔴 点対称</button>
+    </div>
+
+    <!-- 線対称パネル -->
+    <div class="panel-body" id="linePanel">
+      <div class="info-card">
+        <div class="title">📖 線対称とは？</div>
+        <div class="desc">1本の直線（対称の軸）を折り目として折ったとき、ぴったり重なる図形です。</div>
+      </div>
+
+      <div class="ctrl-group">
+        <label>① 対称の軸を選ぶ</label>
+        <div class="axis-btns">
+          <button class="axis-btn active" onclick="setAxisDir('vertical', this)">⬆️ たて</button>
+          <button class="axis-btn"        onclick="setAxisDir('horizontal', this)">➡️ よこ</button>
+        </div>
+      </div>
+
+      <div class="ctrl-group">
+        <label>② 対称な図形</label>
+        <button class="sym-btn" id="reflectBtn" onclick="toggleReflection()">✨ 対称な図形を表示</button>
+      </div>
+
+      <div class="ctrl-group" style="margin-bottom:0">
+        <label>③ アニメーション</label>
+        <button class="sym-btn green" id="foldBtn" onclick="startFoldAnimation()">📂 折りたたむアニメーション</button>
+        <button class="sym-btn orange" id="unfoldBtn" onclick="resetFold()" style="display:none">🔄 もとに戻す</button>
+      </div>
+    </div>
+
+    <!-- 点対称パネル -->
+    <div class="panel-body" id="pointPanel" style="display:none">
+      <div class="info-card" style="border-color:#e24b4a;background:#fff0f0">
+        <div class="title" style="color:#a32d2d">📖 点対称とは？</div>
+        <div class="desc" style="color:#4a1a1a">対称の中心のまわりに 180° 回転させたとき、もとの図形にぴったり重なる図形です。</div>
+      </div>
+
+      <div class="ctrl-group">
+        <label>① 対称の中心</label>
+        <button class="center-btn" onclick="setCenterMode()">📍 中心をキャンバスで指定</button>
+      </div>
+
+      <div class="ctrl-group">
+        <label>② 図形を回転する</label>
+        <button class="sym-btn red" id="showRotateBtn" onclick="toggleShowRotation()">🔄 図形を回転する</button>
+      </div>
+
+      <div id="rotateControls" style="display:none">
+        <div class="ctrl-group">
+          <label>スライダーで回転させよう</label>
+          <div class="angle-display">
+            <div class="angle-val" id="angleVal">0</div>
+            <div class="angle-label">度</div>
+          </div>
+          <input type="range" class="rotate-slider" id="rotateSlider" min="0" max="360" value="0" step="1" oninput="updateRotation(this.value)">
+          <div class="angle-presets">
+            <button class="preset-btn" onclick="setAngle(0)">0°</button>
+            <button class="preset-btn" onclick="setAngle(90)">90°</button>
+            <button class="preset-btn" onclick="setAngle(180)">180°</button>
+            <button class="preset-btn" onclick="setAngle(360)">360°</button>
+          </div>
+          <p style="font-size:11px;color:#e24b4a;text-align:center;margin-top:8px;font-weight:700;">👆 スライダーを動かして回転させてみよう！</p>
+        </div>
+
+        <div class="ctrl-group" style="border-top:1px solid #f0d0d0;padding-top:12px;">
+          <label>アニメーションで自動回転</label>
+          <button class="sym-btn purple" id="rotateBtn" onclick="startRotateAnim()">🎬 180°まで自動で回転</button>
+          <div class="ctrl-group" style="margin-top:8px;margin-bottom:0;">
+            <label>回転の速さ</label>
+            <div class="slider-row">
+              <span style="font-size:11px;color:#5a7aaa;font-weight:700;">遅い</span>
+              <input type="range" id="speedSlider" min="400" max="3000" value="1800" step="100"
+                oninput="updateSpeed(3400 - parseInt(this.value))" style="flex:1;">
+              <span style="font-size:11px;color:#5a7aaa;font-weight:700;">速い</span>
+            </div>
+            <p style="font-size:11px;color:#5a7aaa;text-align:center;margin-top:4px;font-weight:700;" id="speedLabel">ふつう（1.6秒）</p>
+          </div>
+        </div>
+
+        <button class="sym-btn orange" id="resetRotateBtn" onclick="resetRotation()" style="margin-top:8px;">🔄 もとに戻す</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<button class="help-badge" onclick="showToast('まず図形を描いて、右のパネルで対称を確認しよう！')">?</button>
+
+<script>
+const canvas = document.getElementById('mainCanvas');
+const ctx = canvas.getContext('2d');
+
+// ===== 状態変数 =====
+let tool = 'pen';
+let color = '#1a6fdf';
+let brushSize = 3;
+let drawing = false;
+let paths = [];
+let currentPath = null;
+let startX = 0, startY = 0;
+let bgImage = null;
+let bgDrawRect = null;
+let centerX = 0, centerY = 0;
+let centerMode = false;
+
+let symType = 'line';
+let axisDir = 'vertical';
+let showReflection = false;
+let showRotation = false;
+let currentAngle = 180;
+let animDuration = 1600;
+let animFrame = null;
+let animating = false;
+
+// ★ 折りたたみ停止用
+let foldFrozen = false;
+let frozenFixedCanvas = null;
+let frozenMovedCanvas = null;
+
+// ===== キャンバスサイズ =====
+function resizeCanvas() {
+  const area = document.querySelector('.canvas-area');
+  const ctbar = document.querySelector('.canvas-toolbar');
+  canvas.width  = area.clientWidth;
+  canvas.height = area.clientHeight - ctbar.offsetHeight;
+  centerX = canvas.width  / 2;
+  centerY = canvas.height / 2;
+  calcBgDrawRect();
+  if (foldFrozen) {
+    // リサイズ時は折りたたみ状態を解除
+    resetFold();
+  } else {
+    redrawAll();
+  }
+}
+window.addEventListener('resize', resizeCanvas);
+window.addEventListener('load',   resizeCanvas);
+
+// ===== 移動ツール用の変数 =====
+let selectedIndex = -1;  // 選択中の図形インデックス（-2=画像, -1=なし, 0以上=paths配列）
+let dragOffsetX = 0, dragOffsetY = 0;
+let isDragging = false;
+
+// ===== 描画ツール設定 =====
+function setTool(t) {
+  tool = t;
+  document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-tool="${t}"]`).classList.add('active');
+  if (t === 'move') {
+    canvas.style.cursor = 'grab';
+    selectedIndex = -1;
+  } else {
+    canvas.style.cursor = t === 'eraser' ? 'cell' : 'crosshair';
+    selectedIndex = -1;
+  }
+  redrawAll();
+}
+function setColor(c, el) {
+  color = c;
+  document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+  el.classList.add('active');
+}
+function setBrushSize(v) {
+  brushSize = parseInt(v);
+  document.getElementById('brushSizeVal').textContent = v;
+}
+
+// ===== マウス/タッチイベント =====
+function getPos(e) {
+  const r   = canvas.getBoundingClientRect();
+  const src = e.touches ? e.touches[0] : e;
+  return { x: src.clientX - r.left, y: src.clientY - r.top };
+}
+
+canvas.addEventListener('mousedown', onDown);
+canvas.addEventListener('mousemove', onMove);
+canvas.addEventListener('mouseup',   onUp);
+canvas.addEventListener('touchstart', e => { e.preventDefault(); onDown(e); }, { passive: false });
+canvas.addEventListener('touchmove',  e => { e.preventDefault(); onMove(e); }, { passive: false });
+canvas.addEventListener('touchend',   e => { e.preventDefault(); onUp(e);   }, { passive: false });
+
+function onDown(e) {
+  // 折りたたみ停止中は描画を無効化
+  if (foldFrozen) return;
+
+  const pos = getPos(e);
+  // 中心指定モード
+  if (centerMode) {
+    centerX = pos.x; centerY = pos.y;
+    centerMode = false;
+    canvas.style.cursor = tool === 'move' ? 'grab' : 'crosshair';
+    document.getElementById('setCenterBtn').textContent = '📍 対称の中心を指定';
+    showToast('対称の中心を設定しました！');
+    redrawAll();
+    return;
+  }
+
+  // ===== 移動ツール =====
+  if (tool === 'move') {
+
+    // まず：選択中のオブジェクトがあるならリサイズハンドルをチェック
+    if (selectedIndex !== -1) {
+      const handle = hitTestHandle(pos.x, pos.y);
+      if (handle) {
+        // リサイズ開始
+        isResizing = true;
+        resizeHandle = handle;
+        resizeStartMouse = { x: pos.x, y: pos.y };
+        if (selectedIndex === -2 && bgImage && bgDrawRect) {
+          resizeStartBounds = { x: bgDrawRect.dx, y: bgDrawRect.dy, w: bgDrawRect.dw, h: bgDrawRect.dh };
+        } else if (selectedIndex >= 0) {
+          resizeStartBounds = getBounds(paths[selectedIndex]);
+        }
+        canvas.style.cursor = 'nwse-resize';
+        return;
+      }
+    }
+
+    // リサイズでなければ通常の選択/ドラッグ
+    selectedIndex = -1;
+    // 図形を後ろ（上に描かれた方）から探す
+    for (let i = paths.length - 1; i >= 0; i--) {
+      if (hitTestPath(paths[i], pos.x, pos.y)) {
+        selectedIndex = i;
+        const b = getBounds(paths[i]);
+        dragOffsetX = pos.x - b.x;
+        dragOffsetY = pos.y - b.y;
+        isDragging = true;
+        canvas.style.cursor = 'grabbing';
+        redrawAll();
+        return;
+      }
+    }
+    // 画像の当たり判定
+    if (bgImage && bgDrawRect) {
+      if (pos.x >= bgDrawRect.dx && pos.x <= bgDrawRect.dx + bgDrawRect.dw &&
+          pos.y >= bgDrawRect.dy && pos.y <= bgDrawRect.dy + bgDrawRect.dh) {
+        selectedIndex = -2; // 画像を選択
+        dragOffsetX = pos.x - bgDrawRect.dx;
+        dragOffsetY = pos.y - bgDrawRect.dy;
+        isDragging = true;
+        canvas.style.cursor = 'grabbing';
+        redrawAll();
+        return;
+      }
+    }
+    // 何もなければ選択解除
+    redrawAll();
+    return;
+  }
+
+  // ===== 通常描画 =====
+  drawing = true;
+  startX = pos.x; startY = pos.y;
+  if (tool === 'pen' || tool === 'eraser') {
+    currentPath = {
+      type:   tool,
+      color:  tool === 'eraser' ? '#ffffff' : color,
+      size:   tool === 'eraser' ? brushSize * 4 : brushSize,
+      points: [{ x: pos.x, y: pos.y }]
+    };
+  }
+}
+function onMove(e) {
+  const pos = getPos(e);
+
+  // ===== リサイズ中 =====
+  if (tool === 'move' && isResizing && resizeStartBounds) {
+    applyResize(pos);
+    redrawAll();
+    return;
+  }
+
+  // ===== 移動ツールのドラッグ =====
+  if (tool === 'move' && isDragging) {
+    if (selectedIndex === -2 && bgImage && bgDrawRect) {
+      bgDrawRect.dx = pos.x - dragOffsetX;
+      bgDrawRect.dy = pos.y - dragOffsetY;
+    } else if (selectedIndex >= 0) {
+      const p = paths[selectedIndex];
+      const b = getBounds(p);
+      const dx = (pos.x - dragOffsetX) - b.x;
+      const dy = (pos.y - dragOffsetY) - b.y;
+      movePath(p, dx, dy);
+    }
+    redrawAll();
+    return;
+  }
+
+  // ===== 移動ツール：マウスホバーでカーソル変更 =====
+  if (tool === 'move' && !isDragging && !isResizing) {
+    if (selectedIndex !== -1 && hitTestHandle(pos.x, pos.y)) {
+      canvas.style.cursor = 'nwse-resize';
+    } else {
+      canvas.style.cursor = 'grab';
+    }
+  }
+
+  if (!drawing) return;
+  if (tool === 'pen' || tool === 'eraser') {
+    currentPath.points.push({ x: pos.x, y: pos.y });
+    redrawAll();
+    drawPath(ctx, currentPath);
+  } else {
+    redrawAll();
+    drawShape(ctx, tool, startX, startY, pos.x, pos.y, color, brushSize);
+  }
+}
+function onUp(e) {
+  // ===== リサイズ完了 =====
+  if (tool === 'move' && isResizing) {
+    isResizing = false;
+    resizeHandle = null;
+    resizeStartBounds = null;
+    resizeStartMouse = null;
+    resizeOriginalPath = null;
+    canvas.style.cursor = 'grab';
+    redrawAll();
+    return;
+  }
+
+  // ===== 移動ツール =====
+  if (tool === 'move') {
+    if (isDragging) {
+      isDragging = false;
+      canvas.style.cursor = 'grab';
+      redrawAll();
+    }
+    return;
+  }
+
+  if (!drawing) return;
+  drawing = false;
+  const r   = canvas.getBoundingClientRect();
+  const src = e.changedTouches ? e.changedTouches[0] : e;
+  const pos = { x: src.clientX - r.left, y: src.clientY - r.top };
+  if (tool === 'pen' || tool === 'eraser') {
+    paths.push(currentPath);
+    currentPath = null;
+  } else {
+    paths.push({ type: tool, color, size: brushSize, x1: startX, y1: startY, x2: pos.x, y2: pos.y });
+  }
+  redrawAll();
+}
+
+// ===== リサイズ処理 =====
+function applyResize(pos) {
+  const sb = resizeStartBounds;
+  const dx = pos.x - resizeStartMouse.x;
+  const dy = pos.y - resizeStartMouse.y;
+  const MIN_SIZE = 20;
+
+  // ハンドルに応じて新しいバウンディングボックスを計算
+  let newX = sb.x, newY = sb.y, newW = sb.w, newH = sb.h;
+
+  if (resizeHandle === 'br') {
+    newW = Math.max(MIN_SIZE, sb.w + dx);
+    newH = Math.max(MIN_SIZE, sb.h + dy);
+  } else if (resizeHandle === 'bl') {
+    newW = Math.max(MIN_SIZE, sb.w - dx);
+    newH = Math.max(MIN_SIZE, sb.h + dy);
+    newX = sb.x + sb.w - newW;
+  } else if (resizeHandle === 'tr') {
+    newW = Math.max(MIN_SIZE, sb.w + dx);
+    newH = Math.max(MIN_SIZE, sb.h - dy);
+    newY = sb.y + sb.h - newH;
+  } else if (resizeHandle === 'tl') {
+    newW = Math.max(MIN_SIZE, sb.w - dx);
+    newH = Math.max(MIN_SIZE, sb.h - dy);
+    newX = sb.x + sb.w - newW;
+    newY = sb.y + sb.h - newH;
+  }
+
+  if (selectedIndex === -2 && bgImage && bgDrawRect) {
+    // 画像のリサイズ
+    bgDrawRect.dx = newX;
+    bgDrawRect.dy = newY;
+    bgDrawRect.dw = newW;
+    bgDrawRect.dh = newH;
+  } else if (selectedIndex >= 0) {
+    // 図形のリサイズ（スケーリング）
+    scalePath(paths[selectedIndex], sb, { x: newX, y: newY, w: newW, h: newH });
+  }
+}
+
+// ===== 図形のスケーリング =====
+// リサイズ開始時の図形データを保存しておく
+let resizeOriginalPath = null;
+
+function scalePath(p, oldBounds, newBounds) {
+  // 初回は元の図形データをコピーして保存
+  if (!resizeOriginalPath) {
+    resizeOriginalPath = JSON.parse(JSON.stringify(p));
+  }
+  const orig = resizeOriginalPath;
+  const scaleX = newBounds.w / Math.max(oldBounds.w, 1);
+  const scaleY = newBounds.h / Math.max(oldBounds.h, 1);
+
+  if (p.type === 'pen' || p.type === 'eraser') {
+    for (let i = 0; i < p.points.length; i++) {
+      p.points[i].x = newBounds.x + (orig.points[i].x - oldBounds.x) * scaleX;
+      p.points[i].y = newBounds.y + (orig.points[i].y - oldBounds.y) * scaleY;
+    }
+  } else {
+    p.x1 = newBounds.x + (orig.x1 - oldBounds.x) * scaleX;
+    p.y1 = newBounds.y + (orig.y1 - oldBounds.y) * scaleY;
+    p.x2 = newBounds.x + (orig.x2 - oldBounds.x) * scaleX;
+    p.y2 = newBounds.y + (orig.y2 - oldBounds.y) * scaleY;
+  }
+}
+
+// ===== 当たり判定 =====
+function hitTestPath(p, mx, my) {
+  const margin = Math.max(p.size || 3, 10); // タッチしやすいように余裕を持たせる
+  if (p.type === 'pen' || p.type === 'eraser') {
+    // フリーハンド：各点との距離
+    for (const pt of p.points) {
+      if (Math.hypot(pt.x - mx, pt.y - my) < margin) return true;
+    }
+    return false;
+  }
+  // 図形系：バウンディングボックスで判定
+  const b = getBounds(p);
+  const m = margin;
+  return mx >= b.x - m && mx <= b.x + b.w + m && my >= b.y - m && my <= b.y + b.h + m;
+}
+
+// ===== バウンディングボックス取得 =====
+function getBounds(p) {
+  if (p.type === 'pen' || p.type === 'eraser') {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const pt of p.points) {
+      if (pt.x < minX) minX = pt.x;
+      if (pt.y < minY) minY = pt.y;
+      if (pt.x > maxX) maxX = pt.x;
+      if (pt.y > maxY) maxY = pt.y;
+    }
+    return { x: minX, y: minY, w: maxX - minX, h: maxY - minY };
+  }
+  const x = Math.min(p.x1, p.x2);
+  const y = Math.min(p.y1, p.y2);
+  return { x, y, w: Math.abs(p.x2 - p.x1), h: Math.abs(p.y2 - p.y1) };
+}
+
+// ===== 図形の移動 =====
+function movePath(p, dx, dy) {
+  if (p.type === 'pen' || p.type === 'eraser') {
+    for (const pt of p.points) {
+      pt.x += dx;
+      pt.y += dy;
+    }
+  } else {
+    p.x1 += dx; p.y1 += dy;
+    p.x2 += dx; p.y2 += dy;
+  }
+}
+
+// ===== 図形描画 =====
+function drawPath(context, p) {
+  if (!p || !p.points || p.points.length < 2) return;
+  context.beginPath();
+  context.strokeStyle = p.color;
+  context.lineWidth   = p.size;
+  context.lineCap     = 'round';
+  context.lineJoin    = 'round';
+  context.moveTo(p.points[0].x, p.points[0].y);
+  for (let i = 1; i < p.points.length; i++) context.lineTo(p.points[i].x, p.points[i].y);
+  context.stroke();
+}
+function drawShape(context, type, x1, y1, x2, y2, col, size) {
+  context.beginPath();
+  context.strokeStyle = col;
+  context.lineWidth   = size;
+  context.lineCap     = 'round';
+  context.lineJoin    = 'round';
+  context.setLineDash([]);
+  if (type === 'line') {
+    context.moveTo(x1, y1); context.lineTo(x2, y2); context.stroke();
+  } else if (type === 'rect') {
+    context.strokeRect(x1, y1, x2 - x1, y2 - y1);
+  } else if (type === 'circle') {
+    context.ellipse((x1+x2)/2, (y1+y2)/2, Math.abs(x2-x1)/2, Math.abs(y2-y1)/2, 0, 0, Math.PI*2);
+    context.stroke();
+  } else if (type === 'triangle') {
+    context.moveTo((x1+x2)/2, y1);
+    context.lineTo(x2, y2);
+    context.lineTo(x1, y2);
+    context.closePath();
+    context.stroke();
+  }
+}
+
+// 全図形をまとめて描く
+function drawAll(context) {
+  if (bgImage) drawBgImage(context);
+  for (const p of paths) {
+    if (p.type === 'pen' || p.type === 'eraser') drawPath(context, p);
+    else drawShape(context, p.type, p.x1, p.y1, p.x2, p.y2, p.color, p.size);
+  }
+}
+
+// ===== メイン再描画 =====
+function redrawAll() {
+  // 折りたたみ停止中は専用の描画
+  if (foldFrozen) {
+    drawFrozenFold();
+    return;
+  }
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = 1;
+  drawAll(ctx);
+  if (showReflection && symType === 'line')  drawLineSymmetry();
+  if (showRotation   && symType === 'point') drawPointSymmetry(currentAngle);
+  drawGuides();
+  drawSelection();
+}
+
+// ===== 選択枠の描画（リサイズハンドル付き） =====
+const HANDLE_SIZE = 10; // ハンドルのサイズ
+
+function getSelectionRect() {
+  if (selectedIndex === -2 && bgImage && bgDrawRect) {
+    return { x: bgDrawRect.dx, y: bgDrawRect.dy, w: bgDrawRect.dw, h: bgDrawRect.dh };
+  } else if (selectedIndex >= 0 && selectedIndex < paths.length) {
+    return getBounds(paths[selectedIndex]);
+  }
+  return null;
+}
+
+function drawSelection() {
+  if (tool !== 'move') return;
+  const r = getSelectionRect();
+  if (!r) return;
+
+  const pad = 6;
+  const rx = r.x - pad, ry = r.y - pad, rw = r.w + pad*2, rh = r.h + pad*2;
+
+  ctx.save();
+  // 選択枠
+  ctx.strokeStyle = '#1a6fdf';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.globalAlpha = 1;
+  ctx.strokeRect(rx, ry, rw, rh);
+  ctx.setLineDash([]);
+
+  // 四隅のリサイズハンドル
+  ctx.fillStyle = '#ffffff';
+  ctx.strokeStyle = '#1a6fdf';
+  ctx.lineWidth = 2;
+  const hs = HANDLE_SIZE;
+  const corners = [
+    { x: rx - hs/2,      y: ry - hs/2 },       // 左上
+    { x: rx + rw - hs/2, y: ry - hs/2 },       // 右上
+    { x: rx - hs/2,      y: ry + rh - hs/2 },  // 左下
+    { x: rx + rw - hs/2, y: ry + rh - hs/2 },  // 右下
+  ];
+  for (const c of corners) {
+    ctx.fillRect(c.x, c.y, hs, hs);
+    ctx.strokeRect(c.x, c.y, hs, hs);
+  }
+  ctx.restore();
+}
+
+// ===== リサイズ用：どのハンドルの上か判定 =====
+// 返り値: 'tl','tr','bl','br' または null
+function hitTestHandle(mx, my) {
+  const r = getSelectionRect();
+  if (!r) return null;
+  const pad = 6;
+  const rx = r.x - pad, ry = r.y - pad, rw = r.w + pad*2, rh = r.h + pad*2;
+  const hs = HANDLE_SIZE + 6; // タッチしやすいよう余裕
+
+  const corners = [
+    { key: 'tl', x: rx,      y: ry },
+    { key: 'tr', x: rx + rw, y: ry },
+    { key: 'bl', x: rx,      y: ry + rh },
+    { key: 'br', x: rx + rw, y: ry + rh },
+  ];
+  for (const c of corners) {
+    if (Math.abs(mx - c.x) < hs && Math.abs(my - c.y) < hs) return c.key;
+  }
+  return null;
+}
+
+// リサイズ用変数
+let isResizing = false;
+let resizeHandle = null; // 'tl','tr','bl','br'
+let resizeStartBounds = null; // リサイズ開始時のバウンディングボックス
+let resizeStartMouse = null;
+
+// ===== 線対称 =====
+function drawLineSymmetry() {
+  const W = canvas.width, H = canvas.height;
+  const off = makeOffscreen();
+  ctx.save();
+  if (axisDir === 'vertical') {
+    ctx.translate(W, 0); ctx.scale(-1, 1);
+  } else {
+    ctx.translate(0, H); ctx.scale(1, -1);
+  }
+  ctx.globalAlpha = 0.5;
+  ctx.drawImage(off, 0, 0);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// ===== 点対称 =====
+function drawPointSymmetry(angle) {
+  const off = makeOffscreen();
+  ctx.save();
+  ctx.translate(centerX, centerY);
+  ctx.rotate(angle * Math.PI / 180);
+  ctx.translate(-centerX, -centerY);
+  ctx.globalAlpha = 0.55;
+  ctx.drawImage(off, 0, 0);
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// オフスクリーンキャンバスを作成して全図形を描く
+function makeOffscreen() {
+  const off = document.createElement('canvas');
+  off.width  = canvas.width;
+  off.height = canvas.height;
+  drawAll(off.getContext('2d'));
+  return off;
+}
+
+// ===== ガイド線 =====
+function drawGuides() {
+  const W = canvas.width, H = canvas.height;
+  ctx.save();
+  ctx.globalAlpha = 1;
+
+  if (symType === 'line') {
+    // 対称の軸（常時表示）
+    ctx.strokeStyle = '#1a6fdf';
+    ctx.lineWidth   = 2.5;
+    ctx.setLineDash([12, 7]);
+    ctx.beginPath();
+    if (axisDir === 'vertical') {
+      ctx.moveTo(W/2, 0); ctx.lineTo(W/2, H);
+    } else {
+      ctx.moveTo(0, H/2); ctx.lineTo(W, H/2);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font      = 'bold 12px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#0a4da8';
+    if (axisDir === 'vertical') ctx.fillText('対称の軸', W/2 + 6, 20);
+    else                        ctx.fillText('対称の軸', 6, H/2 - 6);
+  }
+
+  if (symType === 'point') {
+    // 対称の中心点
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, 7, 0, Math.PI * 2);
+    ctx.fillStyle   = '#e24b4a';
+    ctx.fill();
+    ctx.strokeStyle = 'white';
+    ctx.lineWidth   = 2;
+    ctx.stroke();
+    ctx.font      = 'bold 11px "M PLUS Rounded 1c", sans-serif';
+    ctx.fillStyle = '#a32d2d';
+    ctx.fillText('対称の中心', centerX + 10, centerY - 6);
+  }
+
+  ctx.restore();
+}
+
+// ===== タブ切り替え（改善版） =====
+function switchSymType(type) {
+  if (symType === type) return; // 同じモードなら何もしない
+
+  // アニメーション中なら停止
+  if (animFrame) { cancelAnimationFrame(animFrame); animating = false; }
+
+  // 折りたたみ停止中なら解除
+  if (foldFrozen) resetFold();
+
+  symType = type;
+  const lineTab  = document.getElementById('lineTab');
+  const pointTab = document.getElementById('pointTab');
+  const panel    = document.getElementById('symmetryPanel');
+  const header   = document.getElementById('panelHeader');
+  const title    = document.getElementById('panelTitle');
+  const desc     = document.getElementById('panelDesc');
+
+  // タブの見た目
+  lineTab.classList.remove('active', 'point-active');
+  pointTab.classList.remove('active', 'point-active');
+
+  if (type === 'line') {
+    lineTab.classList.add('active');
+    panel.classList.remove('point-mode');
+    title.textContent = '📏 線対称モード';
+    desc.textContent = '折り目で折ったとき、ぴったり重なるかな？';
+  } else {
+    pointTab.classList.add('active', 'point-active');
+    panel.classList.add('point-mode');
+    title.textContent = '🔴 点対称モード';
+    desc.textContent = '中心のまわりに回転させてみよう！';
+  }
+
+  // パネル表示切り替え
+  document.getElementById('linePanel').style.display  = type === 'line'  ? 'block' : 'none';
+  document.getElementById('pointPanel').style.display = type === 'point' ? 'block' : 'none';
+
+  // 状態リセット
+  showReflection = false;
+  showRotation   = false;
+
+  // ボタンリセット
+  const rb = document.getElementById('reflectBtn');
+  rb.textContent = '✨ 対称な図形を表示';
+  rb.classList.remove('on');
+  const srb = document.getElementById('showRotateBtn');
+  srb.textContent = '🔄 図形を回転する';
+  srb.classList.remove('on');
+  const rotb = document.getElementById('rotateBtn');
+  rotb.textContent = '🎬 180°まで自動で回転';
+  rotb.classList.remove('on');
+  currentAngle = 0;
+  document.getElementById('rotateSlider').value = 0;
+  document.getElementById('angleVal').textContent = '0';
+  document.getElementById('rotateControls').style.display = 'none';
+  document.getElementById('foldBtn').textContent = '📂 折りたたむアニメーション';
+  document.getElementById('foldBtn').style.display = 'block';
+  document.getElementById('unfoldBtn').style.display = 'none';
+
+  redrawAll();
+
+  // モード切り替えバナー表示
+  showModeBanner(type);
+}
+
+// ★ モード切り替え時のバナー表示
+function showModeBanner(type) {
+  const banner = document.getElementById('modeBanner');
+  banner.className = 'mode-banner';
+  if (type === 'line') {
+    banner.textContent = '📏 線対称モード';
+    banner.classList.add('line-mode');
+  } else {
+    banner.textContent = '🔴 点対称モード';
+    banner.classList.add('point-mode');
+  }
+  // アニメーション表示
+  requestAnimationFrame(() => {
+    banner.classList.add('show');
+    setTimeout(() => {
+      banner.classList.remove('show');
+    }, 1200);
+  });
+}
+
+// ===== 軸の方向 =====
+function setAxisDir(dir, el) {
+  axisDir = dir;
+  document.querySelectorAll('.axis-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  redrawAll();
+}
+
+// ===== 線対称ON/OFF =====
+function toggleReflection() {
+  showReflection = !showReflection;
+  const btn = document.getElementById('reflectBtn');
+  btn.textContent = showReflection ? '🙈 対称を非表示' : '✨ 対称な図形を表示';
+  btn.classList.toggle('on', showReflection);
+  redrawAll();
+}
+
+// ===== 折りたたみアニメーション（★改善：完了後に停止） =====
+function startFoldAnimation() {
+  if (animating) return;
+  if (foldFrozen) { resetFold(); return; }
+  animating = true;
+  showReflection = false;
+  const btn = document.getElementById('foldBtn');
+  btn.textContent = '▶ アニメーション中...';
+
+  const W = canvas.width, H = canvas.height;
+
+  // 固定側（たて→右半分、よこ→下半分）
+  const ofFixed = document.createElement('canvas');
+  ofFixed.width = W; ofFixed.height = H;
+  const cfix = ofFixed.getContext('2d');
+  cfix.save();
+  cfix.beginPath();
+  if (axisDir === 'vertical') cfix.rect(W/2, 0, W/2, H);
+  else                        cfix.rect(0, H/2, W, H/2);
+  cfix.clip();
+  drawAll(cfix);
+  cfix.restore();
+
+  // 動く側（たて→左半分、よこ→上半分）
+  const ofMove = document.createElement('canvas');
+  ofMove.width = W; ofMove.height = H;
+  const cmov = ofMove.getContext('2d');
+  cmov.save();
+  cmov.beginPath();
+  if (axisDir === 'vertical') cmov.rect(0, 0, W/2, H);
+  else                        cmov.rect(0, 0, W, H/2);
+  cmov.clip();
+  drawAll(cmov);
+  cmov.restore();
+
+  const t0 = performance.now();
+  function step(now) {
+    const prog   = Math.min((now - t0) / animDuration, 1);
+    const eased  = 1 - Math.pow(1 - prog, 3);
+    const fscale = Math.cos(eased * Math.PI); // 1→0→-1
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+    ctx.drawImage(ofFixed, 0, 0); // 固定側はそのまま
+
+    ctx.save();
+    ctx.globalAlpha = prog > 0.5 ? 0.65 : 1;
+    if (axisDir === 'vertical') {
+      ctx.translate(W/2, 0); ctx.scale(fscale, 1); ctx.translate(-W/2, 0);
+    } else {
+      ctx.translate(0, H/2); ctx.scale(1, fscale); ctx.translate(0, -H/2);
+    }
+    ctx.drawImage(ofMove, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+    drawGuides();
+
+    if (prog < 1) {
+      animFrame = requestAnimationFrame(step);
+    } else {
+      // ★ アニメーション完了 → 折りたたんだ状態で停止！
+      animating = false;
+      foldFrozen = true;
+      frozenFixedCanvas = ofFixed;
+      frozenMovedCanvas = ofMove;
+
+      // ボタンを「もとに戻す」に切り替え
+      btn.style.display = 'none';
+      document.getElementById('unfoldBtn').style.display = 'block';
+
+      showToast('ぴったり重なったかな？じっくり見てみよう！');
+      drawFrozenFold();
+    }
+  }
+  animFrame = requestAnimationFrame(step);
+}
+
+// ★ 折りたたんだ状態を描画（停止中に使用）
+function drawFrozenFold() {
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+
+  // 固定側
+  if (frozenFixedCanvas) ctx.drawImage(frozenFixedCanvas, 0, 0);
+
+  // 動いた側（反転した状態で重ねて表示）
+  if (frozenMovedCanvas) {
+    ctx.save();
+    ctx.globalAlpha = 0.65;
+    if (axisDir === 'vertical') {
+      ctx.translate(W/2, 0); ctx.scale(-1, 1); ctx.translate(-W/2, 0);
+    } else {
+      ctx.translate(0, H/2); ctx.scale(1, -1); ctx.translate(0, -H/2);
+    }
+    ctx.drawImage(frozenMovedCanvas, 0, 0);
+    ctx.restore();
+    ctx.globalAlpha = 1;
+  }
+  drawGuides();
+}
+
+// ★ 折りたたみ状態を解除
+function resetFold() {
+  foldFrozen = false;
+  frozenFixedCanvas = null;
+  frozenMovedCanvas = null;
+  document.getElementById('foldBtn').textContent = '📂 折りたたむアニメーション';
+  document.getElementById('foldBtn').style.display = 'block';
+  document.getElementById('unfoldBtn').style.display = 'none';
+  showReflection = false;
+  redrawAll();
+  showToast('もとに戻しました');
+}
+
+// ===== 点対称：「図形を回転する」ボタン =====
+function toggleShowRotation() {
+  // アニメ中なら止める
+  if (animating) {
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animating = false;
+  }
+
+  showRotation = !showRotation;
+  const btn = document.getElementById('showRotateBtn');
+  const controls = document.getElementById('rotateControls');
+
+  if (showRotation) {
+    // 回転モードON → スライダーを0°から始める
+    currentAngle = 0;
+    document.getElementById('rotateSlider').value = 0;
+    document.getElementById('angleVal').textContent = '0';
+
+    btn.textContent = '🙈 回転をやめる';
+    btn.classList.add('on');
+    controls.style.display = 'block';
+
+    document.getElementById('rotateBtn').textContent = '🎬 180°まで自動で回転';
+    document.getElementById('rotateBtn').classList.remove('on');
+  } else {
+    btn.textContent = '🔄 図形を回転する';
+    btn.classList.remove('on');
+    controls.style.display = 'none';
+  }
+  redrawAll();
+}
+
+// ===== 点対称：もとに戻す =====
+function resetRotation() {
+  // アニメ中なら止める
+  if (animating) {
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animating = false;
+  }
+
+  showRotation = false;
+  currentAngle = 0;
+  document.getElementById('rotateSlider').value = 0;
+  document.getElementById('angleVal').textContent = '0';
+  document.getElementById('showRotateBtn').textContent = '🔄 図形を回転する';
+  document.getElementById('showRotateBtn').classList.remove('on');
+  document.getElementById('rotateControls').style.display = 'none';
+  document.getElementById('rotateBtn').textContent = '🎬 180°まで自動で回転';
+  document.getElementById('rotateBtn').classList.remove('on');
+  redrawAll();
+  showToast('もとに戻しました');
+}
+
+// ===== 点対称：アニメーション（0°→180°を自動再生） =====
+function startRotateAnim() {
+  if (animating) {
+    // アニメ中にもう一度押したら停止 → 現在の角度で止まる
+    if (animFrame) cancelAnimationFrame(animFrame);
+    animating = false;
+    showRotation = true;
+    const btn = document.getElementById('rotateBtn');
+    btn.textContent = '🎬 180°まで自動で回転';
+    btn.classList.remove('on');
+    redrawAll();
+    return;
+  }
+
+  animating = true;
+  showRotation = false; // アニメ側で直接描く
+
+  const btn = document.getElementById('rotateBtn');
+  btn.textContent = '⏹ 停止';
+  btn.classList.add('on');
+
+  const startA = 0;
+  const targetA = 180;
+  const t0 = performance.now();
+
+  function step(now) {
+    const prog  = Math.min((now - t0) / animDuration, 1);
+    const eased = 1 - Math.pow(1 - prog, 3);
+    const angle = startA + (targetA - startA) * eased;
+
+    // スライダーも連動して動かす
+    currentAngle = Math.round(angle);
+    document.getElementById('rotateSlider').value = currentAngle;
+    document.getElementById('angleVal').textContent = currentAngle;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.globalAlpha = 1;
+    drawAll(ctx);
+    drawPointSymmetry(angle);
+    drawGuides();
+
+    if (prog < 1) {
+      animFrame = requestAnimationFrame(step);
+    } else {
+      // アニメ完了 → 180°の状態でスライダー表示に戻す
+      animating = false;
+      showRotation = true;
+      currentAngle = 180;
+      document.getElementById('rotateSlider').value = 180;
+      document.getElementById('angleVal').textContent = '180';
+      btn.textContent = '🎬 もう一度（0°から）';
+      btn.classList.remove('on');
+      showToast('180°で回転しました。ぴったり重なったかな？');
+      redrawAll();
+    }
+  }
+  animFrame = requestAnimationFrame(step);
+}
+
+// ===== 角度・速さ =====
+function updateRotation(val) {
+  currentAngle = parseInt(val);
+  document.getElementById('angleVal').textContent = currentAngle;
+  if (showRotation) redrawAll();
+}
+function setAngle(a) {
+  currentAngle = a;
+  document.getElementById('rotateSlider').value = a;
+  document.getElementById('angleVal').textContent = a;
+  if (showRotation) redrawAll();
+}
+function updateSpeed(ms) {
+  animDuration = ms;
+  const sec = (ms / 1000).toFixed(1);
+  const lbl = document.getElementById('speedLabel');
+  if (ms <= 700) lbl.textContent = `速い（${sec}秒）`;
+  else if (ms <= 1800) lbl.textContent = `ふつう（${sec}秒）`;
+  else lbl.textContent = `ゆっくり（${sec}秒）`;
+}
+
+// ===== 対称の中心指定 =====
+function setCenterMode() {
+  centerMode = true;
+  canvas.style.cursor = 'crosshair';
+  document.getElementById('setCenterBtn').textContent = '📍 クリックで中心を指定中...';
+  showToast('キャンバス上をクリックして対称の中心を指定してください');
+}
+
+
+// ===== プリセット画像（Canvas APIで描画して生成） =====
+var PRESET_IMAGES = [];
+
+function buildPresetImages() {
+  // 各図形をCanvasで描いてdata URLを生成
+  var presets = [
+    { name: 'ちょうちょ', draw: function(c) {
+      c.fillStyle='#e88dd6'; c.strokeStyle='#a0306a'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(100,40); c.bezierCurveTo(60,10,10,20,20,70); c.bezierCurveTo(25,95,60,110,100,100); c.bezierCurveTo(140,110,175,95,180,70); c.bezierCurveTo(190,20,140,10,100,40); c.fill(); c.stroke();
+      c.fillStyle='#88c6f0'; c.strokeStyle='#2060a0';
+      c.beginPath(); c.moveTo(100,100); c.bezierCurveTo(60,110,25,140,30,170); c.bezierCurveTo(35,190,70,195,100,170); c.bezierCurveTo(130,195,165,190,170,170); c.bezierCurveTo(175,140,140,110,100,100); c.fill(); c.stroke();
+      c.strokeStyle='#333'; c.beginPath(); c.moveTo(100,40); c.lineTo(100,170); c.stroke();
+      c.strokeStyle='#a0306a'; c.lineWidth=2; c.beginPath(); c.arc(80,65,12,0,Math.PI*2); c.stroke(); c.beginPath(); c.arc(120,65,12,0,Math.PI*2); c.stroke();
+    }},
+    { name: '星', draw: function(c) {
+      var pts = [[100,15],[123,78],[190,78],[135,118],[155,180],[100,145],[45,180],[65,118],[10,78],[77,78]];
+      c.fillStyle='#ffd43b'; c.strokeStyle='#e67700'; c.lineWidth=3; c.lineJoin='round';
+      c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(var i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); c.closePath(); c.fill(); c.stroke();
+    }},
+    { name: 'ハート', draw: function(c) {
+      c.fillStyle='#ff6b6b'; c.strokeStyle='#c0392b'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(100,180); c.bezierCurveTo(60,140,10,110,10,65); c.bezierCurveTo(10,30,40,15,65,15); c.bezierCurveTo(82,15,95,25,100,40); c.bezierCurveTo(105,25,118,15,135,15); c.bezierCurveTo(160,15,190,30,190,65); c.bezierCurveTo(190,110,140,140,100,180); c.fill(); c.stroke();
+    }},
+    { name: '矢印', draw: function(c) {
+      var pts = [[100,10],[170,90],[130,90],[130,190],[70,190],[70,90],[30,90]];
+      c.fillStyle='#51cf66'; c.strokeStyle='#2b8a3e'; c.lineWidth=3; c.lineJoin='round';
+      c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(var i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); c.closePath(); c.fill(); c.stroke();
+    }},
+    { name: 'ひし形', draw: function(c) {
+      var pts = [[100,15],[185,100],[100,185],[15,100]];
+      c.fillStyle='#748ffc'; c.strokeStyle='#364fc7'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(var i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); c.closePath(); c.fill(); c.stroke();
+    }},
+    { name: 'T字', draw: function(c) {
+      c.fillStyle='#ff922b'; c.strokeStyle='#d9480f'; c.lineWidth=3;
+      roundRect(c,15,20,170,40,5); roundRect(c,70,20,60,170,5);
+    }},
+    { name: '三角形', draw: function(c) {
+      var pts = [[100,20],[180,180],[20,180]];
+      c.fillStyle='#da77f2'; c.strokeStyle='#862e9c'; c.lineWidth=3; c.lineJoin='round';
+      c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(var i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); c.closePath(); c.fill(); c.stroke();
+    }},
+    { name: '十字', draw: function(c) {
+      c.fillStyle='#20c997'; c.strokeStyle='#0b7285'; c.lineWidth=3;
+      roundRect(c,70,15,60,170,8); roundRect(c,15,70,170,60,8);
+    }},
+    { name: '六角形', draw: function(c) {
+      var pts = [[100,15],[175,55],[175,135],[100,175],[25,135],[25,55]];
+      c.fillStyle='#fcc419'; c.strokeStyle='#e67700'; c.lineWidth=3;
+      c.beginPath(); c.moveTo(pts[0][0],pts[0][1]); for(var i=1;i<pts.length;i++) c.lineTo(pts[i][0],pts[i][1]); c.closePath(); c.fill(); c.stroke();
+    }}
+  ];
+
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x+r,y); c.lineTo(x+w-r,y); c.quadraticCurveTo(x+w,y,x+w,y+r);
+    c.lineTo(x+w,y+h-r); c.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    c.lineTo(x+r,y+h); c.quadraticCurveTo(x,y+h,x,y+h-r);
+    c.lineTo(x,y+r); c.quadraticCurveTo(x,y,x+r,y);
+    c.closePath(); c.fill(); c.stroke();
+  }
+
+  for (var i = 0; i < presets.length; i++) {
+    var off = document.createElement('canvas');
+    off.width = 200; off.height = 200;
+    var oc = off.getContext('2d');
+    presets[i].draw(oc);
+    PRESET_IMAGES.push({ name: presets[i].name, dataUrl: off.toDataURL('image/png') });
+  }
+}
+
+// プリセット画像をグリッドに配置
+function initPresetImages() {
+  buildPresetImages();
+  var grid = document.getElementById('presetGrid');
+  for (var i = 0; i < PRESET_IMAGES.length; i++) {
+    (function(idx) {
+      var item = document.createElement('div');
+      item.className = 'preset-item';
+      var img = document.createElement('img');
+      img.src = PRESET_IMAGES[idx].dataUrl;
+      img.alt = PRESET_IMAGES[idx].name;
+      var span = document.createElement('span');
+      span.textContent = PRESET_IMAGES[idx].name;
+      item.appendChild(img);
+      item.appendChild(span);
+      item.onclick = function() { loadPresetImage(idx); };
+      grid.appendChild(item);
+    })(i);
+  }
+}
+
+function loadPresetImage(idx) {
+  var preset = PRESET_IMAGES[idx];
+  var img = new Image();
+  img.onload = function() {
+    bgImage = img;
+    calcBgDrawRect();
+    redrawAll();
+    showToast(preset.name + ' を読み込みました！');
+    document.getElementById('clearImageBtn').style.display = 'flex';
+    document.getElementById('uploadLabel').textContent = preset.name;
+  };
+  img.src = preset.dataUrl;
+}
+
+// 初期化
+window.addEventListener('load', initPresetImages);
+
+// ===== ドラッグ＆ドロップ =====
+function initDragDrop() {
+  var area = document.querySelector('.canvas-area');
+  var overlay = document.getElementById('dropOverlay');
+
+  area.addEventListener('dragover', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    overlay.classList.add('active');
+  });
+  area.addEventListener('dragleave', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    overlay.classList.remove('active');
+  });
+  area.addEventListener('drop', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    overlay.classList.remove('active');
+    var file = e.dataTransfer.files[0];
+    if (file && file.type.indexOf('image/') === 0) {
+      loadImageFromFile(file);
+    }
+  });
+}
+window.addEventListener('load', initDragDrop);
+
+// ===== クリップボード貼り付け =====
+document.addEventListener('paste', function(e) {
+  var items = e.clipboardData ? e.clipboardData.items : null;
+  if (!items) return;
+  for (var i = 0; i < items.length; i++) {
+    if (items[i].type.indexOf('image/') === 0) {
+      e.preventDefault();
+      var file = items[i].getAsFile();
+      if (file) loadImageFromFile(file);
+      return;
+    }
+  }
+});
+
+// ===== 共通：ファイルから画像を読み込む =====
+function loadImageFromFile(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    const img = new Image();
+    img.onload = () => {
+      bgImage = img;
+      calcBgDrawRect();
+      redrawAll();
+      showToast('画像を読み込みました！');
+      document.getElementById('clearImageBtn').style.display = 'flex';
+      const name = file.name || '画像';
+      document.getElementById('uploadLabel').textContent = name.length > 8 ? name.slice(0,8)+'…' : name;
+    };
+    img.src = ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+// ===== 画像読み込み（ファイル選択ダイアログ用） =====
+function loadImage(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadImageFromFile(file);
+}
+function calcBgDrawRect() {
+  if (!bgImage) { bgDrawRect = null; return; }
+  const iw = bgImage.naturalWidth, ih = bgImage.naturalHeight;
+  const cw = canvas.width, ch = canvas.height;
+  const scale = Math.min(cw/iw, ch/ih);
+  bgDrawRect = { dx: (cw - iw*scale)/2, dy: (ch - ih*scale)/2, dw: iw*scale, dh: ih*scale };
+}
+function drawBgImage(context) {
+  if (!bgImage || !bgDrawRect) return;
+  context.drawImage(bgImage, bgDrawRect.dx, bgDrawRect.dy, bgDrawRect.dw, bgDrawRect.dh);
+}
+function clearImage() {
+  bgImage = null;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('clearImageBtn').style.display = 'none';
+  document.getElementById('uploadLabel').innerHTML = '画像を選択';
+  redrawAll();
+  showToast('画像を消しました');
+}
+
+// ===== キャンバス操作 =====
+function undoLast() {
+  if (foldFrozen) resetFold();
+  selectedIndex = -1;
+  if (paths.length > 0) { paths.pop(); redrawAll(); }
+}
+function clearCanvas() {
+  if (foldFrozen) resetFold();
+  selectedIndex = -1;
+  paths = []; bgImage = null; showReflection = false; showRotation = false;
+  document.getElementById('fileInput').value = '';
+  document.getElementById('clearImageBtn').style.display = 'none';
+  document.getElementById('uploadLabel').innerHTML = '画像を選択';
+  redrawAll();
+  showToast('キャンバスを消去しました');
+}
+function downloadCanvas() {
+  const link = document.createElement('a');
+  link.download = '対称な図形.png';
+  link.href = canvas.toDataURL();
+  link.click();
+  showToast('画像を保存しました！');
+}
+
+// ===== トースト =====
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+<script>
+if('serviceWorker' in navigator && location.protocol==='https:'){try{navigator.serviceWorker.register('sw.js').catch(function(){});}catch(e){}}
+</script>
+</body>
+</html>
